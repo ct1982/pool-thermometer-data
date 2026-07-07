@@ -1,0 +1,1 @@
+Mein Pool-Thermometer-Zwischenspeicher
