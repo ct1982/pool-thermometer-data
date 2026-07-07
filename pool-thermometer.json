@@ -1,7 +1,7 @@
 {
   "battery": 100,
-  "ble_rssi": -55,
-  "pool_temp": 25.78,
-  "timestamp": "2026-07-07 19:20:00",
+  "ble_rssi": -57,
+  "pool_temp": 25.88,
+  "timestamp": "2026-07-07 19:25:00",
   "wifi_rssi": -27
 }
