@@ -1,0 +1,29 @@
+name: Update pool thermometer JSON
+
+on:
+  repository_dispatch:
+    types: [pool_telemetry]
+
+permissions:
+  contents: write
+
+jobs:
+  update-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create JSON file
+        run: |
+          cat > pool-thermometer.json << 'EOF'
+          ${{ toJson(github.event.client_payload.data) }}
+          EOF
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pool-thermometer.json
+          git commit -m "Update pool thermometer JSON" || exit 0
+          git push
