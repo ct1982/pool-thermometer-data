@@ -1,10 +1,11 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pool Temperatur Live</title>
+    <title>Pool Temperatur Live & Historie</title>
+    <!-- Chart.js für die Grafik einbinden -->
+    <script src="https://jsdelivr.net"></script>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -22,6 +23,8 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
         .container {
             background-color: var(--card-color);
@@ -30,7 +33,7 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
             text-align: center;
             width: 100%;
-            max-width: 320px;
+            max-width: 360px;
         }
         h1 {
             font-size: 1.3rem;
@@ -41,8 +44,8 @@
         }
         .gauge {
             position: relative;
-            width: 200px;
-            height: 200px;
+            width: 180px;
+            height: 180px;
             margin: 0 auto 1.5rem;
             border-radius: 50%;
             background: conic-gradient(var(--accent-color) 0%, #334155 0%);
@@ -55,19 +58,19 @@
         .gauge::before {
             content: '';
             position: absolute;
-            width: 174px;
-            height: 174px;
+            width: 154px;
+            height: 154px;
             background-color: var(--card-color);
             border-radius: 50%;
         }
         .temp-display {
             position: relative;
-            font-size: 3.5rem;
+            font-size: 3.2rem;
             font-weight: 800;
             color: var(--text-color);
         }
         .unit {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 400;
             color: var(--accent-color);
             vertical-align: super;
@@ -76,18 +79,25 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
             border-top: 1px solid #334155;
         }
         .stat-box {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
         }
         .stat-value {
             font-weight: bold;
             color: var(--text-color);
             margin-top: 2px;
+        }
+        .chart-container {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #334155;
+            height: 150px;
+            position: relative;
         }
         .updated {
             font-size: 0.75rem;
@@ -99,57 +109,138 @@
 <body>
 
 <div class="container">
-    <h1>Pool Wassertemperatur</h1>
+    <h1>Pool Wasser</h1>
     <div class="gauge" id="gauge">
         <div class="temp-display" id="temp">--<span class="unit">°C</span></div>
     </div>
     
     <div class="stats-grid">
-        <div class="stat-box">🔋 Batterie<div class="stat-value" id="bat">--</div></div>
+        <div class="stat-box">🔋 Bat.<div class="stat-value" id="bat">--</div></div>
         <div class="stat-box">📶 Wi-Fi<div class="stat-value" id="wifi">--</div></div>
         <div class="stat-box">🔵 BLE<div class="stat-value" id="ble">--</div></div>
+    </div>
+
+    <!-- Hier wird die Grafik gezeichnet -->
+    <div class="chart-container">
+        <canvas id="historyChart"></canvas>
     </div>
 
     <div class="updated" id="time">Lade Live-Daten...</div>
 </div>
 
 <script>
+    let myChart = null;
+
+    // Funktion zur Formatierung des Datums in den deutschen Style
+    function formatGermanDateTime(rawTimestamp) {
+        try {
+            // Erwartet "2026-07-09 12:20:00"
+            const parts = rawTimestamp.split(' ');
+            const dateParts = parts[0].split('-');
+            const timeParts = parts[1].split(':');
+            
+            const day = dateParts[2];
+            const month = dateParts[1];
+            const year = dateParts[0];
+            const hours = timeParts[0];
+            const minutes = timeParts[1];
+
+            return `${day}.${month}.${year} - ${hours}:${minutes} Uhr`;
+        } catch(e) {
+            return rawTimestamp; // Fallback, falls das Format abweicht
+        }
+    }
+
+    // Historie im Browser verwalten
+    function saveToHistory(temp, timeStr) {
+        // Nur die Uhrzeit für die X-Achse extrahieren (z.B. "12:20")
+        let shortTime = timeStr;
+        if(timeStr.includes(' - ')) {
+            shortTime = timeStr.split(' - ')[1].replace(' Uhr', '');
+        }
+
+        let history = JSON.parse(localStorage.getItem('pool_history')) || [];
+        
+        // Duplikate verhindern (nur speichern, wenn neuer Zeitstempel)
+        if (history.length === 0 || history[history.length - 1].time !== shortTime) {
+            history.push({ temp: parseFloat(temp), time: shortTime });
+        }
+        
+        // Maximal 15 Einträge behalten, um die Grafik übersichtlich zu halten
+        if (history.length > 15) {
+            history.shift();
+        }
+        
+        localStorage.setItem('pool_history', JSON.stringify(history));
+        return history;
+    }
+
+    // Grafik zeichnen oder aktualisieren
+    function updateChart(historyData) {
+        const labels = historyData.map(item => item.time);
+        const temps = historyData.map(item => item.temp);
+        const ctx = document.getElementById('historyChart').getContext('2d');
+
+        if (myChart) {
+            myChart.data.labels = labels;
+            myChart.data.datasets[0].data = temps;
+            myChart.update();
+        } else {
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Verlauf (°C)',
+                        data: temps,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', font: { size: 9 } } },
+                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+    }
+
     async function updateData() {
         try {
             const response = await fetch('./pool-thermometer.json?t=' + new Date().getTime());
             const data = await response.json();
             
-            // Anpassung an Ihre JSON-Struktur
             const temp = parseFloat(data.pool_temp).toFixed(1);
-            const timeStr = data.timestamp;
             const battery = data.battery + "%";
             const wifi = data.wifi_rssi + " dBm";
             const ble = data.ble_rssi + " dBm";
 
-            // Zeitstempel zerlegen (erwartet "2026-07-09 12:20:00")
-            const rawTimestamp = data.timestamp; // z.B. "2026-07-09 12:20:00"
-            const parts = rawTimestamp.split(' '); // Trennt Datum und Uhrzeit am Leerzeichen
-            
-            const dateParts = parts[0].split('-'); // Zerteilt "2026-07-09" bei den Bindestrichen
-            const timeParts = parts[1].split(':'); // Zerteilt "12:20:00" bei den Doppelpunkten
+            // Deutsches Format anwenden
+            const formattedTime = formatGermanDateTime(data.timestamp);
 
-            // Neues deutsches Format zusammenbauen: "09.07.2026 - 12:20 Uhr"
-            const formattedTime = `${dateParts[2]}.${dateParts[1]}.${dateParts[0]} - ${timeParts[0]}:${timeParts[1]} Uhr`;
-            
-            // HTML Elemente befüllen
+            // HTML befüllen
             document.getElementById('temp').innerHTML = `${temp}<span class="unit">°C</span>`;
             document.getElementById('bat').innerText = battery;
             document.getElementById('wifi').innerText = wifi;
             document.getElementById('ble').innerText = ble;
-            
-            //document.getElementById('time').innerHTML = `Messung vom: ${timeStr}`;
-            // Hier wird das neue, formatierte Datum eingesetzt:
             document.getElementById('time').innerHTML = `Messung vom: ${formattedTime}`;
 
-            
-            // Kreis-Diagramm berechnen (Bereich 0°C bis 40°C)
+            // Gauge Kreisdiagramm anpassen
             const percent = Math.min(Math.max((temp / 40) * 100, 0), 100);
             document.getElementById('gauge').style.background = `conic-gradient(var(--accent-color) ${percent}%, #334155 ${percent}%)`;
+            
+            // Verlauf verarbeiten & Grafik rendern
+            const history = saveToHistory(temp, formattedTime);
+            updateChart(history);
             
         } catch (error) {
             console.error("Fehler beim Laden der Pool-Daten:", error);
@@ -157,8 +248,8 @@
         }
     }
 
-    // Sofort laden und alle 30 Sekunden aktualisieren
     updateData();
+    // Alle 30 Sekunden nach neuen Daten schauen
     setInterval(updateData, 30000);
 </script>
 </body>
