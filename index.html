@@ -11,6 +11,7 @@
             --card-color: #1e293b;
             --accent-color: #38bdf8;
             --text-color: #f8fafc;
+            --text-secondary: #94a3b8;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -24,17 +25,17 @@
         }
         .container {
             background-color: var(--card-color);
-            padding: 2.5rem;
+            padding: 2rem;
             border-radius: 24px;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
             text-align: center;
             width: 100%;
-            max-width: 350px;
+            max-width: 320px;
         }
         h1 {
-            font-size: 1.5rem;
-            margin-bottom: 2rem;
-            color: #94a3b8;
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
@@ -42,20 +43,20 @@
             position: relative;
             width: 200px;
             height: 200px;
-            margin: 0 auto 2rem;
+            margin: 0 auto 1.5rem;
             border-radius: 50%;
             background: conic-gradient(var(--accent-color) 0%, #334155 0%);
             display: flex;
             justify-content: center;
             align-items: center;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-            transition: background 1s ease-in-out;
+            transition: background 0.5s ease-in-out;
         }
         .gauge::before {
             content: '';
             position: absolute;
-            width: 170px;
-            height: 170px;
+            width: 174px;
+            height: 174px;
             background-color: var(--card-color);
             border-radius: 50%;
         }
@@ -71,9 +72,27 @@
             color: var(--accent-color);
             vertical-align: super;
         }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #334155;
+        }
+        .stat-box {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .stat-value {
+            font-weight: bold;
+            color: var(--text-color);
+            margin-top: 2px;
+        }
         .updated {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: #64748b;
+            margin-top: 1.5rem;
         }
     </style>
 </head>
@@ -84,26 +103,37 @@
     <div class="gauge" id="gauge">
         <div class="temp-display" id="temp">--<span class="unit">°C</span></div>
     </div>
+    
+    <div class="stats-grid">
+        <div class="stat-box">🔋 Batterie<div class="stat-value" id="bat">--</div></div>
+        <div class="stat-box">📶 Wi-Fi<div class="stat-value" id="wifi">--</div></div>
+        <div class="stat-box">🔵 BLE<div class="stat-value" id="ble">--</div></div>
+    </div>
+
     <div class="updated" id="time">Lade Live-Daten...</div>
 </div>
 
 <script>
     async function updateData() {
         try {
-            // Holt die JSON-Datei, die Ihr Workflow im Sekundentakt speichert
             const response = await fetch('./pool-thermometer.json?t=' + new Date().getTime());
-            const payload = await response.json();
+            const data = await response.json();
             
-            // HIER ANPASSEN: Ändern Sie 'temperature' und 'timestamp' exakt so, 
-            // wie die Schlüssel in Ihrem übergebenen JSON heißen!
-            const temp = parseFloat(payload.temperature).toFixed(1);
-            const timeStr = payload.timestamp || new Date().toLocaleTimeString();
+            // Anpassung an Ihre JSON-Struktur
+            const temp = parseFloat(data.pool_temp).toFixed(1);
+            const timeStr = data.timestamp;
+            const battery = data.battery + "%";
+            const wifi = data.wifi_rssi + " dBm";
+            const ble = data.ble_rssi + " dBm";
 
-            // Anzeige aktualisieren
+            // HTML Elemente befüllen
             document.getElementById('temp').innerHTML = `${temp}<span class="unit">°C</span>`;
-            document.getElementById('time').innerHTML = `Zuletzt aktualisiert: ${timeStr}`;
+            document.getElementById('bat').innerText = battery;
+            document.getElementById('wifi').innerText = wifi;
+            document.getElementById('ble').innerText = ble;
+            document.getElementById('time').innerHTML = `Messung vom: ${timeStr}`;
 
-            // Visuellen Kreis anpassen (Annahme: max 40 Grad = 100%)
+            // Kreis-Diagramm berechnen (Bereich 0°C bis 40°C)
             const percent = Math.min(Math.max((temp / 40) * 100, 0), 100);
             document.getElementById('gauge').style.background = `conic-gradient(var(--accent-color) ${percent}%, #334155 ${percent}%)`;
             
@@ -113,7 +143,7 @@
         }
     }
 
-    // Sofort laden und alle 30 Sekunden im Hintergrund aktualisieren
+    // Sofort laden und alle 30 Sekunden aktualisieren
     updateData();
     setInterval(updateData, 30000);
 </script>
