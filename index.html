@@ -1,4 +1,4 @@
-# 🏊‍♂️ Pool-Thermometer Weboberfläche
+//# 🏊‍♂️ Pool-Thermometer Weboberfläche
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -99,7 +99,7 @@
 <body>
 
 <div class="container">
-    <h1>Pool Wasser</h1>
+    <h1>Pool Wassertemperatur</h1>
     <div class="gauge" id="gauge">
         <div class="temp-display" id="temp">--<span class="unit">°C</span></div>
     </div>
@@ -126,13 +126,27 @@
             const wifi = data.wifi_rssi + " dBm";
             const ble = data.ble_rssi + " dBm";
 
+            // Zeitstempel zerlegen (erwartet "2026-07-09 12:20:00")
+            const rawTimestamp = data.timestamp; // z.B. "2026-07-09 12:20:00"
+            const parts = rawTimestamp.split(' '); // Trennt Datum und Uhrzeit am Leerzeichen
+            
+            const dateParts = parts[0].split('-'); // Zerteilt "2026-07-09" bei den Bindestrichen
+            const timeParts = parts[1].split(':'); // Zerteilt "12:20:00" bei den Doppelpunkten
+
+            // Neues deutsches Format zusammenbauen: "09.07.2026 - 12:20 Uhr"
+            const formattedTime = `${dateParts[2]}.${dateParts[1]}.${dateParts[0]} - ${timeParts[0]}:${timeParts[1]} Uhr`;
+            
             // HTML Elemente befüllen
             document.getElementById('temp').innerHTML = `${temp}<span class="unit">°C</span>`;
             document.getElementById('bat').innerText = battery;
             document.getElementById('wifi').innerText = wifi;
             document.getElementById('ble').innerText = ble;
-            document.getElementById('time').innerHTML = `Messung vom: ${timeStr}`;
+            
+            //document.getElementById('time').innerHTML = `Messung vom: ${timeStr}`;
+            // Hier wird das neue, formatierte Datum eingesetzt:
+            document.getElementById('time').innerHTML = `Messung vom: ${formattedTime}`;
 
+            
             // Kreis-Diagramm berechnen (Bereich 0°C bis 40°C)
             const percent = Math.min(Math.max((temp / 40) * 100, 0), 100);
             document.getElementById('gauge').style.background = `conic-gradient(var(--accent-color) ${percent}%, #334155 ${percent}%)`;
