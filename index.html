@@ -1,0 +1,121 @@
+# 🏊‍♂️ Pool-Thermometer Weboberfläche
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pool Temperatur Live</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-color: #1e293b;
+            --accent-color: #38bdf8;
+            --text-color: #f8fafc;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: var(--card-color);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            width: 100%;
+            max-width: 350px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .gauge {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 2rem;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent-color) 0%, #334155 0%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            transition: background 1s ease-in-out;
+        }
+        .gauge::before {
+            content: '';
+            position: absolute;
+            width: 170px;
+            height: 170px;
+            background-color: var(--card-color);
+            border-radius: 50%;
+        }
+        .temp-display {
+            position: relative;
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--text-color);
+        }
+        .unit {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: var(--accent-color);
+            vertical-align: super;
+        }
+        .updated {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Pool Wasser</h1>
+    <div class="gauge" id="gauge">
+        <div class="temp-display" id="temp">--<span class="unit">°C</span></div>
+    </div>
+    <div class="updated" id="time">Lade Live-Daten...</div>
+</div>
+
+<script>
+    async function updateData() {
+        try {
+            // Holt die JSON-Datei, die Ihr Workflow im Sekundentakt speichert
+            const response = await fetch('./pool-thermometer.json?t=' + new Date().getTime());
+            const payload = await response.json();
+            
+            // HIER ANPASSEN: Ändern Sie 'temperature' und 'timestamp' exakt so, 
+            // wie die Schlüssel in Ihrem übergebenen JSON heißen!
+            const temp = parseFloat(payload.temperature).toFixed(1);
+            const timeStr = payload.timestamp || new Date().toLocaleTimeString();
+
+            // Anzeige aktualisieren
+            document.getElementById('temp').innerHTML = `${temp}<span class="unit">°C</span>`;
+            document.getElementById('time').innerHTML = `Zuletzt aktualisiert: ${timeStr}`;
+
+            // Visuellen Kreis anpassen (Annahme: max 40 Grad = 100%)
+            const percent = Math.min(Math.max((temp / 40) * 100, 0), 100);
+            document.getElementById('gauge').style.background = `conic-gradient(var(--accent-color) ${percent}%, #334155 ${percent}%)`;
+            
+        } catch (error) {
+            console.error("Fehler beim Laden der Pool-Daten:", error);
+            document.getElementById('time').innerHTML = "Verbindungsfehler...";
+        }
+    }
+
+    // Sofort laden und alle 30 Sekunden im Hintergrund aktualisieren
+    updateData();
+    setInterval(updateData, 30000);
+</script>
+</body>
+</html>
