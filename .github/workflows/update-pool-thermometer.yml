@@ -9,7 +9,6 @@ permissions:
   pages: write
   id-token: write
 
-# Verhindert Staus: Wenn neue Daten reinkommen, wird ein noch laufender Upload abgebrochen
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -18,7 +17,7 @@ jobs:
   update-and-deploy:
     environment:
       name: github-pages
-      url: ${{ steps: deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -33,7 +32,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Lädt den aktuellen Ordner inklusive der neuen JSON-Datei hoch
+          path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment
