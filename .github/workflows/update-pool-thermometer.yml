@@ -5,10 +5,20 @@ on:
     types: [pool_telemetry]
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+# Verhindert Staus: Wenn neue Daten reinkommen, wird ein noch laufender Upload abgebrochen
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
-  update-json:
+  update-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps: deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,10 +30,11 @@ jobs:
           ${{ toJson(github.event.client_payload.data) }}
           EOF
 
-      - name: Commit and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pool-thermometer.json
-          git commit -m "Update pool thermometer JSON" || exit 0
-          git push
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.' # Lädt den aktuellen Ordner inklusive der neuen JSON-Datei hoch
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
